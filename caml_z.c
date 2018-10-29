@@ -1,8 +1,8 @@
-/** 
+/**
   Implementation of Z module.
 
 
-  This file is part of the Zarith library 
+  This file is part of the Zarith library
   http://forge.ocamlcore.org/projects/zarith .
   It is distributed under LGPL 2 licensing, with static linking exception.
   See the LICENSE file included in the distribution.
@@ -18,7 +18,7 @@
 
 
 /*---------------------------------------------------
-  INCLUDES 
+  INCLUDES
   ---------------------------------------------------*/
 
 #include <stdio.h>
@@ -73,8 +73,8 @@ extern "C" {
 /* Sanity checks. */
 #define Z_PERFORM_CHECK 0
 
-/* Enable performance counters. 
-   Prints some info on stdout at exit. 
+/* Enable performance counters.
+   Prints some info on stdout at exit.
 */
 /*
   #define Z_PERF_COUNTER 0
@@ -89,7 +89,7 @@ extern "C" {
 /* whether the "compare_ext" operation over custom blocks is supported.
    This operation is required for OCaml's generic comparisons to
    operate properly over values of type Z.t.
-   The compare_ext operation is supported in OCaml since version 3.12.1. 
+   The compare_ext operation is supported in OCaml since version 3.12.1.
 */
 /*
   #define Z_OCAML_COMPARE_EXT 0
@@ -117,13 +117,13 @@ extern "C" {
   A z object x can be:
   - either an ocaml int
   - or a block with abstract or custom tag and containing:
-    . a 1 value header containing the sign Z_SIGN(x) and the size Z_SIZE(x) 
+    . a 1 value header containing the sign Z_SIGN(x) and the size Z_SIZE(x)
     . Z_SIZE(x) mp_limb_t
 
   Invariant:
   - if the number fits in an int, it is stored in an int, not a block
   - if the number is stored in a block, then Z_SIZE(x) >= 1 and
-  the most significant limb Z_LIMB(x)[Z_SIZE(x)] is not 0 
+  the most significant limb Z_LIMB(x)[Z_SIZE(x)] is not 0
  */
 
 
@@ -189,7 +189,7 @@ extern "C" {
 
 /* safe bounds for the length of a base n string fitting in a native
    int. Defined as the result of (n - 2) log_base(2) with n = 64 or
-   32. 
+   32.
 */
 #ifdef ARCH_SIXTYFOUR
 #define Z_BASE16_LENGTH_OP 15
@@ -216,7 +216,7 @@ unsigned long ml_z_ops_as = 0;
 #define Z_MARK_SLOW  ml_z_slow++
 #else
 #define Z_MARK_OP
-#define Z_MARK_SLOW 
+#define Z_MARK_SLOW
 #endif
 
 
@@ -254,7 +254,7 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
   if (Is_block(v)) {
 #if Z_CUSTOM_BLOCK
     if (Custom_ops_val(v) != &ml_z_custom_ops) {
-      printf("ml_z_check: wrong custom block for %s at %s:%i.\n", 
+      printf("ml_z_check: wrong custom block for %s at %s:%i.\n",
              arg, fn, line);
       exit(1);
     }
@@ -263,13 +263,13 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
     sz = Wosize_val(v);
 #endif
     if (Z_SIZE(v) + 2 > sz) {
-      printf("ml_z_check: invalid block size (%i / %i) for %s at %s:%i.\n", 
+      printf("ml_z_check: invalid block size (%i / %i) for %s at %s:%i.\n",
              (int)Z_SIZE(v), (int)sz,
              arg, fn, line);
       exit(1);
     }
     if ((mp_size_t) Z_LIMB(v)[sz - 2] != (mp_size_t)(0xDEADBEEF ^ (sz - 2))) {
-      printf("ml_z_check: corrupted block for %s at %s:%i.\n", 
+      printf("ml_z_check: corrupted block for %s at %s:%i.\n",
              arg, fn, line);
       exit(1);
     }
@@ -277,7 +277,7 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
 #if !Z_USE_NATINT
     if (!Z_SIZE(v)) {
       if (Z_SIGN(v)) {
-        printf("ml_z_check: invalid sign of 0 for %s at %s:%i.\n", 
+        printf("ml_z_check: invalid sign of 0 for %s at %s:%i.\n",
                arg, fn, line);
         exit(1);
       }
@@ -295,7 +295,7 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
   }
 }
 #endif
-  
+
 /* for debugging */
 #if Z_PERFORM_CHECK
 #define Z_CHECK(v) ml_z_check(__FUNCTION__, __LINE__, #v, v)
@@ -356,7 +356,7 @@ static inline mp_limb_t* ml_z_dup_limb(mp_limb_t* src, mp_size_t sz)
 /* given a z object, define:
    - ptr_arg: a pointer to the first mp_limb_t
    - size_arg: the number of mp-limb_t
-   - sign_arg: the sign of the number 
+   - sign_arg: the sign of the number
    if arg is an int, it is converted to a 1-limb number
 */
 #define Z_DECL(arg)                                                     \
@@ -398,7 +398,7 @@ static value ml_z_reduce(value r, mp_size_t sz, intnat sign)
 #if Z_USE_NATINT
   if (!sz) return Val_long(0);
   if (sz <= 1 && Z_LIMB(r)[0] <= Z_MAX_INT) {
-    if (sign) return Val_long(-Z_LIMB(r)[0]); 
+    if (sign) return Val_long(-Z_LIMB(r)[0]);
     else return Val_long(Z_LIMB(r)[0]);
   }
 #else
@@ -408,9 +408,20 @@ static value ml_z_reduce(value r, mp_size_t sz, intnat sign)
   return r;
 }
 
+static caml_root caml_ml_z_overflow = NULL;
 static void ml_z_raise_overflow()
 {
-  caml_raise_constant(*caml_named_value("ml_z_overflow"));
+  CAMLparam0();
+  if (caml_ml_z_overflow == NULL) {
+    caml_ml_z_overflow = caml_named_root("ml_z_overflow");
+  }
+
+  if (caml_ml_z_overflow == NULL) {
+    invalid_argument("Exception could not get named root ml_z_overflow.");
+  } else {
+    caml_raise_constant(caml_read_root(caml_ml_z_overflow));
+  }
+  CAMLreturn0;
 }
 
 #define ml_z_raise_divide_by_zero() \
@@ -424,7 +435,7 @@ static void ml_z_raise_overflow()
 
 CAMLprim value ml_z_of_int(value v)
 {
-#if Z_USE_NATINT  
+#if Z_USE_NATINT
   Z_MARK_OP;
   return v;
 #else
@@ -448,7 +459,7 @@ CAMLprim value ml_z_of_nativeint(value v)
   value r;
   Z_MARK_OP;
   x = Nativeint_val(v);
-#if Z_USE_NATINT  
+#if Z_USE_NATINT
   if (Z_FITS_INT(x)) return Val_long(x);
 #endif
   Z_MARK_SLOW;
@@ -571,7 +582,7 @@ CAMLprim value ml_z_of_float(value v)
 
 CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value length)
 {
-  CAMLparam1(v);
+  CAMLparam4(b, v, offset, length);
   CAMLlocal1(r);
   intnat ofs = Long_val(offset);
   intnat len = Long_val(length);
@@ -582,15 +593,15 @@ CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value leng
     caml_invalid_argument("Z.of_substring_base: invalid offset or length");
   /* process the string */
   char *d = String_val(v) + ofs;
-  char *end = d + len;  
+  char *end = d + len;
   mp_size_t i, sz, sz2;
   mp_limb_t sign = 0;
   intnat base = Long_val(b);
-  /* We allow [d] to advance beyond [end] while parsing the prefix: 
-     sign, base, and/or leading zeros.  
+  /* We allow [d] to advance beyond [end] while parsing the prefix:
+     sign, base, and/or leading zeros.
      This simplifies the code, and reading these locations is safe since
-     we don't progress beyond a terminating null character. 
-     At the end of the prefix, if we ran past the end, we return 0. 
+     we don't progress beyond a terminating null character.
+     At the end of the prefix, if we ran past the end, we return 0.
   */
   /* get optional sign */
   if (*d == '-') { sign ^= Z_SIGN_MASK; d++; }
@@ -605,7 +616,7 @@ CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value leng
       else if (*d == 'b' || *d == 'B') { base = 2; d++; }
     }
   }
-  if (base < 2 || base > 16) 
+  if (base < 2 || base > 16)
     caml_invalid_argument("Z.of_substring_base: base must be between 2 and 16");
   while (*d == '0') d++;
   /* sz is the length of the substring that has not been consumed above. */
@@ -628,7 +639,7 @@ CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value leng
         else if (d[i] >= 'a' && d[i] <= 'f') digit = d[i] - 'a' + 10;
         else if (d[i] >= 'A' && d[i] <= 'F') digit = d[i] - 'A' + 10;
         else caml_invalid_argument("Z.of_substring_base: invalid digit");
-        if (digit >= base) 
+        if (digit >= base)
           caml_invalid_argument("Z.of_substring_base: invalid digit");
         ret = ret * base + digit;
       }
@@ -646,7 +657,7 @@ CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value leng
       else if (dd[i] >= 'a' && dd[i] <= 'f') dd[i] -= 'a' - 10;
       else if (dd[i] >= 'A' && dd[i] <= 'F') dd[i] -= 'A' - 10;
       else caml_invalid_argument("Z.of_substring_base: invalid digit");
-      if (dd[i] >= base) 
+      if (dd[i] >= base)
         caml_invalid_argument("Z.of_substring_base: invalid digit");
     }
     r = ml_z_alloc(1 + sz / (2 * sizeof(mp_limb_t)));
@@ -682,15 +693,18 @@ CAMLprim value ml_z_to_int(value v)
 
 CAMLprim value ml_z_to_nativeint(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_DECL(v);
   Z_MARK_OP;
   Z_CHECK(v);
-  if (Is_long(v)) return caml_copy_nativeint(Long_val(v));
+  if (Is_long(v)) {
+    CAMLreturn(caml_copy_nativeint(Long_val(v)));
+  }
   Z_MARK_SLOW;
   Z_ARG(v);
   if (size_v > 1) ml_z_raise_overflow();
-  if (!size_v) x = 0; 
+  if (!size_v) x = 0;
   else {
     x = *ptr_v;
     if (sign_v) {
@@ -701,11 +715,12 @@ CAMLprim value ml_z_to_nativeint(value v)
       if ((uintnat)x >= Z_HI_INTNAT) ml_z_raise_overflow();
     }
   }
-  return caml_copy_nativeint(x);
+  CAMLreturn(caml_copy_nativeint(x));
 }
 
 CAMLprim value ml_z_to_int32(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_DECL(v);
   Z_MARK_OP;
@@ -713,16 +728,16 @@ CAMLprim value ml_z_to_int32(value v)
   if (Is_long(v)) {
     x = Long_val(v);
 #ifdef ARCH_SIXTYFOUR
-    if (x >= (intnat)Z_HI_INT32 || x < -(intnat)Z_HI_INT32) 
+    if (x >= (intnat)Z_HI_INT32 || x < -(intnat)Z_HI_INT32)
       ml_z_raise_overflow();
 #endif
-    return caml_copy_int32(x);
+    CAMLreturn(caml_copy_int32(x));
   }
   else {
     Z_ARG(v);
     Z_MARK_SLOW;
     if (size_v > 1) ml_z_raise_overflow();
-    if (!size_v) x = 0; 
+    if (!size_v) x = 0;
     else {
       x = *ptr_v;
       if (sign_v) {
@@ -733,17 +748,20 @@ CAMLprim value ml_z_to_int32(value v)
         if ((uintnat)x >= Z_HI_INT32) ml_z_raise_overflow();
       }
     }
-    return caml_copy_int32(x);
+    CAMLreturn(caml_copy_int32(x));
   }
 }
 
 CAMLprim value ml_z_to_int64(value v)
 {
+  CAMLparam1(v);
   int64_t x = 0;
   Z_DECL(v);
   Z_MARK_OP;
-  Z_CHECK(v);  
-  if (Is_long(v)) return caml_copy_int64(Long_val(v));
+  Z_CHECK(v);
+  if (Is_long(v)) {
+    CAMLreturn(caml_copy_int64(Long_val(v)));
+  }
   Z_MARK_SLOW;
   Z_ARG(v);
   switch (size_v) {
@@ -761,7 +779,7 @@ CAMLprim value ml_z_to_int64(value v)
   else {
     if ((uint64_t)x >= Z_HI_INT64) ml_z_raise_overflow();
   }
-  return caml_copy_int64(x);
+  CAMLreturn(caml_copy_int64(x));
 }
 
 /* XXX: characters that do not belong to the format are ignored, this departs
@@ -771,7 +789,7 @@ CAMLprim value ml_z_format(value f, value v)
 {
   CAMLparam2(f,v);
   Z_DECL(v);
-  const char tab[2][16] = 
+  const char tab[2][16] =
     { { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' },
       { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' } };
   char* buf, *dst;
@@ -801,7 +819,7 @@ CAMLprim value ml_z_format(value f, value v)
     else break;
   }
   if (sign_v) sign = '-';
-  for (;*fmt>='0' && *fmt<='9';fmt++) 
+  for (;*fmt>='0' && *fmt<='9';fmt++)
     width = 10*width + *fmt-'0';
   switch (*fmt) {
   case 'i': case 'd': case 'u': break;
@@ -835,15 +853,15 @@ CAMLprim value ml_z_format(value f, value v)
   if (pad == ' ') {
     if (dir) {
       /* left alignment */
-      for (i = strlen(prefix); i > 0; i--, size_dst++) 
+      for (i = strlen(prefix); i > 0; i--, size_dst++)
         *(--dst) = prefix[i-1];
       if (sign) { *(--dst) = sign; size_dst++; }
-      for (; size_dst < width; size_dst++) 
+      for (; size_dst < width; size_dst++)
         dst[size_dst] = pad;
     }
     else {
       /* right alignment, space padding */
-      for (i = strlen(prefix); i > 0; i--, size_dst++) 
+      for (i = strlen(prefix); i > 0; i--, size_dst++)
         *(--dst) = prefix[i-1];
       if (sign) { *(--dst) = sign; size_dst++; }
       for (; size_dst < width; size_dst++) *(--dst) = pad;
@@ -853,7 +871,7 @@ CAMLprim value ml_z_format(value f, value v)
     /* right alignment, non-space padding */
     width -= strlen(prefix) + (sign ? 1 : 0);
     for (; size_dst < width; size_dst++) *(--dst) = pad;
-    for (i = strlen(prefix); i > 0; i--, size_dst++) 
+    for (i = strlen(prefix); i > 0; i--, size_dst++)
       *(--dst) = prefix[i-1];
     if (sign) { *(--dst) = sign; size_dst++; }
   }
@@ -873,10 +891,11 @@ CAMLprim value ml_z_format(value f, value v)
 
 CAMLprim value ml_z_extract(value arg, value off, value len)
 {
+  CAMLparam3(arg, off, len);
+  CAMLlocal1(r);
   intnat o, l, x;
   mp_size_t sz, c1, c2, csz, i;
   mp_limb_t cr;
-  value r;
   Z_DECL(arg);
   Z_MARK_OP;
   MAYBE_UNUSED x;
@@ -897,14 +916,14 @@ CAMLprim value ml_z_extract(value arg, value off, value len)
       return Val_long(x);
     } else {
       /* If x >= 0, the extraction of "l" low bits keeps x unchanged. */
-      if (x >= 0) return Val_long(x);
+      if (x >= 0) CAMLreturn(Val_long(x));
       /* If x < 0, fall through slow path */
     }
   }
 #endif
   Z_MARK_SLOW;
   {
-  CAMLparam1(arg);
+  // CAMLparam1(arg);
   Z_ARG(arg);
   sz = (l + Z_LIMB_BITS - 1) / Z_LIMB_BITS;
   r = ml_z_alloc(sz + 1);
@@ -925,7 +944,7 @@ CAMLprim value ml_z_extract(value arg, value off, value len)
     Z_LIMB(r)[i] = 0;
   /* 2's complement */
   if (sign_arg) {
-    for (i = 0; i < sz; i++) 
+    for (i = 0; i < sz; i++)
       Z_LIMB(r)[i] = ~Z_LIMB(r)[i];
     /* carry (cr=0 if all shifted-out bits are 0) */
     for (i = 0; !cr && i < c1 && i < size_arg; i++)
@@ -1027,6 +1046,7 @@ CAMLprim value ml_z_of_bits(value arg)
 
 CAMLprim value ml_z_compare(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   int r;
   Z_DECL(arg1); Z_DECL(arg2);
   Z_MARK_OP;
@@ -1034,9 +1054,9 @@ CAMLprim value ml_z_compare(value arg1, value arg2)
 #if Z_FAST_PATH
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    if (arg1 > arg2) return Val_long(1);
-    else if (arg1 < arg2) return Val_long(-1);
-    else return Val_long(0);
+    if (arg1 > arg2) CAMLreturn(Val_long(1));
+    else if (arg1 < arg2) CAMLreturn(Val_long(-1));
+    else CAMLreturn(Val_long(0));
   }
 #endif
   /* mpn_ version */
@@ -1055,11 +1075,12 @@ CAMLprim value ml_z_compare(value arg1, value arg2)
     }
   }
   if (sign_arg1) r = -r;
-  return Val_long(r);
+  CAMLreturn(Val_long(r));
 }
 
 CAMLprim value ml_z_equal(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   mp_size_t i;
   Z_DECL(arg1); Z_DECL(arg2);
   Z_MARK_OP;
@@ -1067,143 +1088,150 @@ CAMLprim value ml_z_equal(value arg1, value arg2)
 #if Z_FAST_PATH
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    return (arg1 == arg2) ? Val_true : Val_false;
+    CAMLreturn((arg1 == arg2) ? Val_true : Val_false);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   Z_ARG(arg1);
   Z_ARG(arg2);
-  if (sign_arg1 != sign_arg2 || size_arg1 != size_arg2) return Val_false;
+  if (sign_arg1 != sign_arg2 || size_arg1 != size_arg2) CAMLreturn(Val_false);
   for (i = 0; i < size_arg1; i++)
-    if (ptr_arg1[i] != ptr_arg2[i]) return Val_false;
-  return Val_true;
+    if (ptr_arg1[i] != ptr_arg2[i]) CAMLreturn(Val_false);
+  CAMLreturn(Val_true);
 }
 
 int ml_z_sgn(value arg)
 {
+  CAMLparam1(arg);
   if (Is_long(arg)) {
-    if (arg > Val_long(0)) return 1;
-    else if (arg < Val_long(0)) return -1;
-    else return 0;
+    if (arg > Val_long(0)) CAMLreturn(1);
+    else if (arg < Val_long(0)) CAMLreturn(-1);
+    else CAMLreturn(0);
   }
   else {
     Z_MARK_SLOW;
-    if (!Z_SIZE(arg)) return 0;
-    else if (Z_SIGN(arg)) return -1;
-    else return 1;
+    if (!Z_SIZE(arg)) CAMLreturn(0);
+    else if (Z_SIGN(arg)) CAMLreturn(-1);
+    else CAMLreturn(1);
   }
 }
 CAMLprim value ml_z_sign(value arg)
 {
+  CAMLparam1(arg);
   Z_MARK_OP;
   Z_CHECK(arg);
-  return Val_long(ml_z_sgn(arg));
+  CAMLreturn(Val_long(ml_z_sgn(arg)));
 }
 
 CAMLprim value ml_z_fits_int(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_DECL(v);
   Z_MARK_OP;
   Z_CHECK(v);
-  if (Is_long(v)) return Val_true;
+  if (Is_long(v)) CAMLreturn(Val_true);
   Z_MARK_SLOW;
   Z_ARG(v);
-  if (size_v > 1) return Val_false;
-  if (!size_v) return Val_true;
+  if (size_v > 1) CAMLreturn(Val_false);
+  if (!size_v) CAMLreturn(Val_true);
   x = *ptr_v;
   if (sign_v) {
-    if ((uintnat)x > Z_HI_INT) return Val_false;
+    if ((uintnat)x > Z_HI_INT) CAMLreturn(Val_false);
   }
   else {
-    if ((uintnat)x >= Z_HI_INT) return Val_false;
+    if ((uintnat)x >= Z_HI_INT) CAMLreturn(Val_false);
   }
-  return Val_true;
+  CAMLreturn(Val_true);
 }
 
 CAMLprim value ml_z_fits_nativeint(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_DECL(v);
   Z_MARK_OP;
   Z_CHECK(v);
-  if (Is_long(v)) return Val_true;
+  if (Is_long(v)) CAMLreturn(Val_true);
   Z_MARK_SLOW;
   Z_ARG(v);
-  if (size_v > 1) return Val_false;
-  if (!size_v) return Val_true;
+  if (size_v > 1) CAMLreturn(Val_false);
+  if (!size_v) CAMLreturn(Val_true);
   x = *ptr_v;
   if (sign_v) {
-    if ((uintnat)x > Z_HI_INTNAT) return Val_false;
+    if ((uintnat)x > Z_HI_INTNAT) CAMLreturn(Val_false);
   }
   else {
-    if ((uintnat)x >= Z_HI_INTNAT) return Val_false;
+    if ((uintnat)x >= Z_HI_INTNAT) CAMLreturn(Val_false);
   }
-  return Val_true;
+  CAMLreturn(Val_true);
 }
 
 CAMLprim value ml_z_fits_int32(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_MARK_OP;
   Z_CHECK(v);
   if (Is_long(v)) {
 #ifdef ARCH_SIXTYFOUR
     x = Long_val(v);
-    if (x >= (intnat)Z_HI_INT32 || x < -(intnat)Z_HI_INT32) 
-      return Val_false;
+    if (x >= (intnat)Z_HI_INT32 || x < -(intnat)Z_HI_INT32)
+      CAMLreturn(Val_false);
 #endif
-    return Val_true;
+    CAMLreturn(Val_true);
   }
   else {
     Z_DECL(v);
     Z_MARK_SLOW;
     Z_ARG(v);
-    if (size_v > 1) return Val_false;
-    if (!size_v) return Val_true;
+    if (size_v > 1) CAMLreturn(Val_false);
+    if (!size_v) CAMLreturn(Val_true);
     x = *ptr_v;
     if (sign_v) {
-      if ((uintnat)x > Z_HI_INT32) return Val_false;
+      if ((uintnat)x > Z_HI_INT32) CAMLreturn(Val_false);
     }
     else {
-      if ((uintnat)x >= Z_HI_INT32) return Val_false;
+      if ((uintnat)x >= Z_HI_INT32) CAMLreturn(Val_false);
     }
-    return Val_true;
+    CAMLreturn(Val_true);
   }
 }
 
 CAMLprim value ml_z_fits_int64(value v)
 {
+  CAMLparam1(v);
   int64_t x;
   Z_DECL(v);
   Z_MARK_OP;
-  Z_CHECK(v);  
-  if (Is_long(v)) return Val_true;
+  Z_CHECK(v);
+  if (Is_long(v)) CAMLreturn(Val_true);
   Z_MARK_SLOW;
   Z_ARG(v);
   switch (size_v) {
-  case 0: return Val_true;
+  case 0: CAMLreturn(Val_true);
   case 1: x = ptr_v[0]; break;
 #ifndef ARCH_SIXTYFOUR
   case 2: x = ptr_v[0] | ((uint64_t)ptr_v[1] << 32); break;
 #endif
-  default: return Val_false;
+  default: CAMLreturn(Val_false);
   }
   if (sign_v) {
-    if ((uint64_t)x > Z_HI_INT64) return Val_false;
+    if ((uint64_t)x > Z_HI_INT64) CAMLreturn(Val_false);
   }
   else {
-    if ((uint64_t)x >= Z_HI_INT64) return Val_false;
+    if ((uint64_t)x >= Z_HI_INT64) CAMLreturn(Val_false);
   }
-  return Val_true;
+  CAMLreturn(Val_true);
 }
 
 CAMLprim value ml_z_size(value v)
 {
+  CAMLparam1(v);
   Z_MARK_OP;
-  if (Is_long(v)) return Val_long(1);
-  else return Val_long(Z_SIZE(v));
+  if (Is_long(v)) CAMLreturn(Val_long(1));
+  else CAMLreturn(Val_long(Z_SIZE(v)));
 }
 
 
@@ -1213,19 +1241,19 @@ CAMLprim value ml_z_size(value v)
 
 CAMLprim value ml_z_neg(value arg)
 {
+  CAMLparam1(arg);
+  CAMLlocal1(r);
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH && !defined(Z_ASM_neg)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg > Val_long(Z_MIN_INT)) return 2 - arg;
+    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(2 - arg);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
-    value r;
     Z_DECL(arg);
     Z_ARG(arg);
     r = ml_z_alloc(size_arg);
@@ -1239,21 +1267,21 @@ CAMLprim value ml_z_neg(value arg)
 
 CAMLprim value ml_z_abs(value arg)
 {
+  CAMLparam1(arg);
+  CAMLlocal1(r);
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH && !defined(Z_ASM_abs)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg >= Val_long(0)) return arg;
-    if (arg > Val_long(Z_MIN_INT)) return 2 - arg;
+    if (arg >= Val_long(0)) CAMLreturn(arg);
+    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(2 - arg);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
     Z_DECL(arg);
-    value r;
     Z_ARG(arg);
     r = ml_z_alloc(size_arg);
     Z_REFRESH(arg);
@@ -1268,8 +1296,8 @@ CAMLprim value ml_z_abs(value arg)
 static value ml_z_addsub(value arg1, value arg2, intnat sign)
 {
   CAMLparam2(arg1,arg2);
+  CAMLlocal1(r);
   Z_DECL(arg1); Z_DECL(arg2);
-  value r;
   mp_limb_t c;
   Z_ARG(arg1);
   Z_ARG(arg2);
@@ -1302,7 +1330,7 @@ static value ml_z_addsub(value arg1, value arg2, intnat sign)
       c = mpn_add(Z_LIMB(r), ptr_arg2, size_arg2, ptr_arg1, size_arg1);
       Z_LIMB(r)[size_arg2] = c;
       r = ml_z_reduce(r, size_arg2+1, sign_arg1);
-    }  
+    }
   }
   else {
     /* subtraction */
@@ -1345,6 +1373,7 @@ static value ml_z_addsub(value arg1, value arg2, intnat sign)
 
 CAMLprim value ml_z_add(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_add)
@@ -1353,16 +1382,17 @@ CAMLprim value ml_z_add(value arg1, value arg2)
     intnat a1 = Long_val(arg1);
     intnat a2 = Long_val(arg2);
     intnat v = a1 + a2;
-    if (Z_FITS_INT(v)) return Val_long(v);
+    if (Z_FITS_INT(v)) CAMLreturn(Val_long(v));
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_addsub(arg1, arg2, 0);
+  CAMLreturn(ml_z_addsub(arg1, arg2, 0));
 }
 
 CAMLprim value ml_z_sub(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_sub)
@@ -1376,11 +1406,13 @@ CAMLprim value ml_z_sub(value arg1, value arg2)
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_addsub(arg1, arg2, Z_SIGN_MASK);
+  CAMLreturn(ml_z_addsub(arg1, arg2, Z_SIGN_MASK));
 }
 
 CAMLprim value ml_z_mul(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal1(r);
   Z_DECL(arg1); Z_DECL(arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
@@ -1389,19 +1421,19 @@ CAMLprim value ml_z_mul(value arg1, value arg2)
     /* fast path */
     intnat a1 = Long_val(arg1);
     intnat a2 = Long_val(arg2);
-    if (!a1 || !a2) return Val_long(0);
+    if (!a1 || !a2) CAMLreturn(Val_long(0));
     /* small argument case */
-    if (Z_FITS_HINT(arg1) && Z_FITS_HINT(arg2)) return Val_long(a1 * a2);
+    if (Z_FITS_HINT(arg1) && Z_FITS_HINT(arg2)) CAMLreturn(Val_long(a1 * a2));
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   Z_ARG(arg1);
   Z_ARG(arg2);
-  if (!size_arg1 || !size_arg2) return Val_long(0);
+  if (!size_arg1 || !size_arg2) CAMLreturn(Val_long(0));
   {
     CAMLparam2(arg1,arg2);
-    value r = ml_z_alloc(size_arg1 + size_arg2);
+    r = ml_z_alloc(size_arg1 + size_arg2);
     mp_limb_t c;
     Z_REFRESH(arg1);
     Z_REFRESH(arg2);
@@ -1452,7 +1484,7 @@ static value ml_z_tdiv_qr(value arg1, value arg2)
     q = ml_z_alloc(size_arg1 - size_arg2 + 1);
     r = ml_z_alloc(size_arg2);
     Z_REFRESH(arg1); Z_REFRESH(arg2);
-    mpn_tdiv_qr(Z_LIMB(q), Z_LIMB(r), 0, 
+    mpn_tdiv_qr(Z_LIMB(q), Z_LIMB(r), 0,
                 ptr_arg1, size_arg1, ptr_arg2, size_arg2);
     q = ml_z_reduce(q, size_arg1 - size_arg2 + 1, sign_arg1 ^ sign_arg2);
     r = ml_z_reduce(r, size_arg2, sign_arg1);
@@ -1464,13 +1496,15 @@ static value ml_z_tdiv_qr(value arg1, value arg2)
   Z_CHECK(q);
   Z_CHECK(r);
   p = caml_alloc_small(2, 0);
-  Field(p,0) = q;
-  Field(p,1) = r;
+  caml_initialize_field(p, 0, q);
+  caml_initialize_field(p, 1, r);
   CAMLreturn(p);
 }
 
 CAMLprim value ml_z_div_rem(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal1(p);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH
@@ -1483,20 +1517,22 @@ CAMLprim value ml_z_div_rem(value arg1, value arg2)
     q = a1 / a2;
     r = a1 % a2;
     if (Z_FITS_INT(q) && Z_FITS_INT(r)) {
-      value p = caml_alloc_small(2, 0);
-      Field(p,0) = Val_long(q);
-      Field(p,1) = Val_long(r);
-      return p;
+      p = caml_alloc_small(2, 0);
+      caml_initialize_field(p, 0, Val_long(q));
+      caml_initialize_field(p, 1, Val_long(r));
+      CAMLreturn(p);
     }
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_tdiv_qr(arg1, arg2);
+  CAMLreturn(ml_z_tdiv_qr(arg1, arg2));
 }
 
 CAMLprim value ml_z_div(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal1(res);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_div)
@@ -1512,11 +1548,14 @@ CAMLprim value ml_z_div(value arg1, value arg2)
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return Field(ml_z_tdiv_qr(arg1, arg2), 0);
+  caml_read_field(ml_z_tdiv_qr(arg1, arg2), 0, &res);
+  CAMLreturn(res);
 }
 
 CAMLprim value ml_z_rem(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal1(res);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_rem)
@@ -1532,7 +1571,8 @@ CAMLprim value ml_z_rem(value arg1, value arg2)
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return Field(ml_z_tdiv_qr(arg1, arg2), 1);
+  caml_read_field(ml_z_tdiv_qr(arg1, arg2), 1, &res);
+  CAMLreturn(res);
 }
 
 /* helper function for division with rounding towards +oo / -oo */
@@ -1548,7 +1588,7 @@ static value ml_z_rdiv(value arg1, value arg2, intnat dir)
     q = ml_z_alloc(size_arg1 - size_arg2 + 2);
     r = ml_z_alloc(size_arg2);
     Z_REFRESH(arg1); Z_REFRESH(arg2);
-    mpn_tdiv_qr(Z_LIMB(q), Z_LIMB(r), 0, 
+    mpn_tdiv_qr(Z_LIMB(q), Z_LIMB(r), 0,
                 ptr_arg1, size_arg1, ptr_arg2, size_arg2);
     if ((sign_arg1 ^ sign_arg2) == dir) {
       /* outward rounding */
@@ -1575,6 +1615,7 @@ static value ml_z_rdiv(value arg1, value arg2, intnat dir)
 
 CAMLprim value ml_z_cdiv(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH
@@ -1588,16 +1629,17 @@ CAMLprim value ml_z_cdiv(value arg1, value arg2)
     if (a1 > 0 && a2 > 0) a1 += a2-1;
     else if (a1 < 0 && a2 < 0) a1 += a2+1;
     q = a1 / a2;
-    if (Z_FITS_INT(q)) return Val_long(q);
+    if (Z_FITS_INT(q)) CAMLreturn(Val_long(q));
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_rdiv(arg1, arg2, 0);
+  CAMLreturn(ml_z_rdiv(arg1, arg2, 0));
 }
 
 CAMLprim value ml_z_fdiv(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH
@@ -1611,20 +1653,20 @@ CAMLprim value ml_z_fdiv(value arg1, value arg2)
     if (a1 < 0 && a2 > 0) a1 -= a2-1;
     else if (a1 > 0 && a2 < 0) a1 -= a2+1;
     q = a1 / a2;
-    if (Z_FITS_INT(q)) return Val_long(q);
+    if (Z_FITS_INT(q)) CAMLreturn(Val_long(q));
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_rdiv(arg1, arg2, Z_SIGN_MASK);
+  CAMLreturn(ml_z_rdiv(arg1, arg2, Z_SIGN_MASK));
 }
 
 /* helper function for succ / pred */
 static value ml_z_succpred(value arg, intnat sign)
 {
   CAMLparam1(arg);
+  CAMLlocal1(r);
   Z_DECL(arg);
-  value r;
   Z_ARG(arg);
   r = ml_z_alloc(size_arg + 1);
   Z_REFRESH(arg);
@@ -1649,45 +1691,47 @@ static value ml_z_succpred(value arg, intnat sign)
 
 CAMLprim value ml_z_succ(value arg)
 {
+  CAMLparam1(arg);
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH && !defined(Z_ASM_succ)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg < Val_long(Z_MAX_INT)) return arg + 2;
+    if (arg < Val_long(Z_MAX_INT)) CAMLreturn(arg + 2);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_succpred(arg, 0);
+  CAMLreturn(ml_z_succpred(arg, 0));
 }
 
 CAMLprim value ml_z_pred(value arg)
 {
+  CAMLparam1(arg);
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH && !defined(Z_ASM_pred)
   if (Is_long(arg)) {
     /* fast path */
-     if (arg > Val_long(Z_MIN_INT)) return arg - 2;
+    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(arg - 2);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
-  return ml_z_succpred(arg, Z_SIGN_MASK);
+  CAMLreturn(ml_z_succpred(arg, Z_SIGN_MASK));
 }
 
 CAMLprim value ml_z_sqrt(value arg)
 {
-  /* XXX TODO: fast path */
   CAMLparam1(arg);
+  CAMLlocal1(r);
+  /* XXX TODO: fast path */
   Z_DECL(arg);
-  value r;
   Z_MARK_OP;
   Z_MARK_SLOW;
   Z_CHECK(arg);
   Z_ARG(arg);
-  if (sign_arg) 
+  if (sign_arg)
     caml_invalid_argument("Z.sqrt: square root of a negative number");
   if (size_arg) {
     mp_size_t sz = (size_arg + 1) / 2;
@@ -1711,7 +1755,7 @@ CAMLprim value ml_z_sqrt_rem(value arg)
   Z_MARK_SLOW;
   Z_CHECK(arg);
   Z_ARG(arg);
-  if (sign_arg) 
+  if (sign_arg)
     caml_invalid_argument("Z.sqrt_rem: square root of a negative number");
   if (size_arg) {
     mp_size_t sz = (size_arg + 1) / 2, sz2;
@@ -1721,18 +1765,20 @@ CAMLprim value ml_z_sqrt_rem(value arg)
     sz2 = mpn_sqrtrem(Z_LIMB(r), Z_LIMB(s), ptr_arg, size_arg);
     r = ml_z_reduce(r, sz, 0);
     s = ml_z_reduce(s, sz2, 0);
-  } 
+  }
   else r = s = Val_long(0);
   Z_CHECK(r);
   Z_CHECK(s);
   p = caml_alloc_small(2, 0);
-  Field(p,0) = r;
-  Field(p,1) = s;
+  caml_initialize_field(p, 0, r);
+  caml_initialize_field(p, 1, s);
   CAMLreturn(p);
 }
 
 CAMLprim value ml_z_gcd(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal3(r0, tmp1, tmp2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH
@@ -1748,14 +1794,12 @@ CAMLprim value ml_z_gcd(value arg1, value arg2)
       intnat r = a1 % a2;
       a1 = a2; a2 = r;
     }
-    return Val_long(a1);
+    CAMLreturn(Val_long(a1));
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam2(arg1, arg2);
-    CAMLlocal3(r, tmp1, tmp2);
     mp_size_t sz, pos1, pos2, limb1, limb2, bit1, bit2, pos, limb, bit, i;
     Z_DECL(arg1); Z_DECL(arg2);
     Z_ARG(arg1);  Z_ARG(arg2);
@@ -1778,7 +1822,7 @@ CAMLprim value ml_z_gcd(value arg1, value arg2)
       if (!Z_LIMB(tmp1)[size_arg1-1]) size_arg1--;
     }
     else ml_z_cpy_limb(Z_LIMB(tmp1), ptr_arg1 + limb1, size_arg1);
-    if (bit2) { 
+    if (bit2) {
       mpn_rshift(Z_LIMB(tmp2), ptr_arg2 + limb2, size_arg2, bit2);
       if (!Z_LIMB(tmp2)[size_arg2-1]) size_arg2--;
     }
@@ -1790,23 +1834,23 @@ CAMLprim value ml_z_gcd(value arg1, value arg2)
     /* compute gcd of arg1 & arg2 without lower 0 bits */
     /* second argument must have less bits than first  */
     if ((size_arg1 > size_arg2) ||
-        ((size_arg1 == size_arg2) && 
+        ((size_arg1 == size_arg2) &&
          (Z_LIMB(tmp1)[size_arg1 - 1] >= Z_LIMB(tmp2)[size_arg1 - 1]))) {
-      r = ml_z_alloc(size_arg2 + limb + 1);
-      sz = mpn_gcd(Z_LIMB(r) + limb, Z_LIMB(tmp1), size_arg1, Z_LIMB(tmp2), size_arg2);
+      r0 = ml_z_alloc(size_arg2 + limb + 1);
+      sz = mpn_gcd(Z_LIMB(r0) + limb, Z_LIMB(tmp1), size_arg1, Z_LIMB(tmp2), size_arg2);
     }
     else {
-      r = ml_z_alloc(size_arg1 + limb + 1);
-      sz = mpn_gcd(Z_LIMB(r) + limb, Z_LIMB(tmp2), size_arg2, Z_LIMB(tmp1), size_arg1);
-    } 
+      r0 = ml_z_alloc(size_arg1 + limb + 1);
+      sz = mpn_gcd(Z_LIMB(r0) + limb, Z_LIMB(tmp2), size_arg2, Z_LIMB(tmp1), size_arg1);
+    }
     /* glue the two results */
-    for (i = 0; i < limb; i++) 
-      Z_LIMB(r)[i] = 0;
-    Z_LIMB(r)[sz + limb] = 0;
-    if (bit) mpn_lshift(Z_LIMB(r) + limb, Z_LIMB(r) + limb, sz + 1, bit);
-    r = ml_z_reduce(r, limb + sz + 1, 0);
-    Z_CHECK(r);
-    CAMLreturn(r);
+    for (i = 0; i < limb; i++)
+      Z_LIMB(r0)[i] = 0;
+    Z_LIMB(r0)[sz + limb] = 0;
+    if (bit) mpn_lshift(Z_LIMB(r0) + limb, Z_LIMB(r0) + limb, sz + 1, bit);
+    r0 = ml_z_reduce(r0, limb + sz + 1, 0);
+    Z_CHECK(r0);
+    CAMLreturn(r0);
   }
 }
 
@@ -1832,32 +1876,32 @@ CAMLprim value ml_z_gcdext_intern(value arg1, value arg2)
   ml_z_cpy_limb(Z_LIMB(res_arg2), ptr_arg2, size_arg2);
   /* must have arg1 >= arg2 */
   if ((size_arg1 > size_arg2) ||
-      ((size_arg1 == size_arg2) && 
+      ((size_arg1 == size_arg2) &&
        (mpn_cmp(Z_LIMB(res_arg1), Z_LIMB(res_arg2), size_arg1)  >= 0))) {
     r = ml_z_alloc(size_arg1 + 1);
     s = ml_z_alloc(size_arg1 + 1);
-    sz = mpn_gcdext(Z_LIMB(r), Z_LIMB(s), &sn, 
+    sz = mpn_gcdext(Z_LIMB(r), Z_LIMB(s), &sn,
                     Z_LIMB(res_arg1), size_arg1, Z_LIMB(res_arg2), size_arg2);
     p = caml_alloc_small(3, 0);
-    Field(p,2) = Val_true;
+    caml_initialize_field(p, 2, Val_true);
   }
   else {
     r = ml_z_alloc(size_arg2 + 1);
     s = ml_z_alloc(size_arg2 + 1);
-    sz = mpn_gcdext(Z_LIMB(r), Z_LIMB(s), &sn, 
+    sz = mpn_gcdext(Z_LIMB(r), Z_LIMB(s), &sn,
                     Z_LIMB(res_arg2), size_arg2, Z_LIMB(res_arg1), size_arg1);
     p = caml_alloc_small(3, 0);
-    Field(p,2) = Val_false;
+    caml_initialize_field(p, 2, Val_false);
     sign_arg1 = sign_arg2;
-  } 
+  }
   /* pack result */
   r = ml_z_reduce(r, sz, 0);
   if ((int)sn >= 0) s = ml_z_reduce(s, sn, sign_arg1);
   else s = ml_z_reduce(s, -sn, sign_arg1 ^ Z_SIGN_MASK);
   Z_CHECK(r);
   Z_CHECK(s);
-  Field(p,0) = r;
-  Field(p,1) = s;
+  caml_initialize_field(p, 0, r);
+  caml_initialize_field(p, 1, s);
   CAMLreturn(p);
 }
 
@@ -1868,6 +1912,8 @@ CAMLprim value ml_z_gcdext_intern(value arg1, value arg2)
 
 CAMLprim value ml_z_logand(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal1(r);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_logand)
@@ -1879,8 +1925,6 @@ CAMLprim value ml_z_logand(value arg1, value arg2)
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam2(arg1,arg2);
-    value r;
     mp_size_t i;
     mp_limb_t c;
     Z_DECL(arg1); Z_DECL(arg2);
@@ -1918,7 +1962,7 @@ CAMLprim value ml_z_logand(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg1, size_arg2, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = (~Z_LIMB(r)[i]) & ptr_arg2[i];
       r = ml_z_reduce(r, size_arg2, 0);
     }
@@ -1928,9 +1972,9 @@ CAMLprim value ml_z_logand(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg2, size_arg2, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = ptr_arg1[i] & (~Z_LIMB(r)[i]);
-      for (; i < size_arg1; i++) 
+      for (; i < size_arg1; i++)
         Z_LIMB(r)[i] = ptr_arg1[i];
       r = ml_z_reduce(r, size_arg1, 0);
     }
@@ -1939,7 +1983,7 @@ CAMLprim value ml_z_logand(value arg1, value arg2)
       r = ml_z_alloc(size_arg2);
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = ptr_arg1[i] & ptr_arg2[i];
       r = ml_z_reduce(r, size_arg2, 0);
     }
@@ -1950,28 +1994,27 @@ CAMLprim value ml_z_logand(value arg1, value arg2)
 
 CAMLprim value ml_z_logor(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal2(a, r);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_logor)
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    return arg1 | arg2;
+    CAMLreturn(arg1 | arg2);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam2(arg1,arg2);
     Z_DECL(arg1); Z_DECL(arg2);
     mp_size_t i;
     mp_limb_t c;
-    value r;
     Z_ARG(arg1);  Z_ARG(arg2);
     /* ensure size_arg1 >= size_arg2 */
     if (size_arg1 < size_arg2) {
       mp_size_t sz;
       mp_limb_t *p, s;
-      value a;
       sz = size_arg1; size_arg1 = size_arg2; size_arg2 = sz;
       p = ptr_arg1; ptr_arg1 = ptr_arg2; ptr_arg2 = p;
       s = sign_arg1; sign_arg1 = sign_arg2; sign_arg2 = s;
@@ -2000,7 +2043,7 @@ CAMLprim value ml_z_logor(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg1, size_arg1, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = Z_LIMB(r)[i] & (~ptr_arg2[i]);
       c = mpn_add_1(Z_LIMB(r), Z_LIMB(r), size_arg1, 1);
       Z_LIMB(r)[size_arg1] = c;
@@ -2012,7 +2055,7 @@ CAMLprim value ml_z_logor(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg2, size_arg2, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = (~ptr_arg1[i]) & Z_LIMB(r)[i];
       c = mpn_add_1(Z_LIMB(r), Z_LIMB(r), size_arg2, 1);
       Z_LIMB(r)[size_arg2] = c;
@@ -2023,9 +2066,9 @@ CAMLprim value ml_z_logor(value arg1, value arg2)
       r = ml_z_alloc(size_arg1);
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = ptr_arg1[i] | ptr_arg2[i];
-      for (; i < size_arg1; i++) 
+      for (; i < size_arg1; i++)
         Z_LIMB(r)[i] = ptr_arg1[i];
       r = ml_z_reduce(r, size_arg1, 0);
     }
@@ -2036,20 +2079,20 @@ CAMLprim value ml_z_logor(value arg1, value arg2)
 
 CAMLprim value ml_z_logxor(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal2(a, r);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH && !defined(Z_ASM_logxor)
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    return (arg1 ^ arg2) | 1;
+    CAMLreturn((arg1 ^ arg2) | 1);
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam2(arg1,arg2);
     Z_DECL(arg1); Z_DECL(arg2);
-    value r;
     mp_size_t i;
     mp_limb_t c;
     Z_ARG(arg1);  Z_ARG(arg2);
@@ -2057,7 +2100,6 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
     if (size_arg1 < size_arg2) {
       mp_size_t sz;
       mp_limb_t *p, s;
-      value a;
       sz = size_arg1; size_arg1 = size_arg2; size_arg2 = sz;
       p = ptr_arg1; ptr_arg1 = ptr_arg2; ptr_arg2 = p;
       s = sign_arg1; sign_arg1 = sign_arg2; sign_arg2 = s;
@@ -2084,7 +2126,7 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg1, size_arg1, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = Z_LIMB(r)[i] ^ ptr_arg2[i];
       c = mpn_add_1(Z_LIMB(r), Z_LIMB(r), size_arg1, 1);
       Z_LIMB(r)[size_arg1] = c;
@@ -2096,9 +2138,9 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
       mpn_sub_1(Z_LIMB(r), ptr_arg2, size_arg2, 1);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = ptr_arg1[i] ^ Z_LIMB(r)[i];
-      for (; i < size_arg1; i++) 
+      for (; i < size_arg1; i++)
         Z_LIMB(r)[i] = ptr_arg1[i];
       c = mpn_add_1(Z_LIMB(r), Z_LIMB(r), size_arg1, 1);
       Z_LIMB(r)[size_arg1] = c;
@@ -2109,9 +2151,9 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
       r = ml_z_alloc(size_arg1);
       Z_REFRESH(arg1);
       Z_REFRESH(arg2);
-      for (i = 0; i < size_arg2; i++) 
+      for (i = 0; i < size_arg2; i++)
         Z_LIMB(r)[i] = ptr_arg1[i] ^ ptr_arg2[i];
-      for (; i < size_arg1; i++) 
+      for (; i < size_arg1; i++)
         Z_LIMB(r)[i] = ptr_arg1[i];
       r = ml_z_reduce(r, size_arg1, 0);
     }
@@ -2122,20 +2164,20 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
 
 CAMLprim value ml_z_lognot(value arg)
 {
+  CAMLparam1(arg);
+  CAMLlocal1(r);
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH && !defined(Z_ASM_lognot)
   if (Is_long(arg)) {
     /* fast path */
-    return (~arg) | 1;
+    CAMLreturn( (~arg) | 1 );
   }
 #endif
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
     Z_DECL(arg);
-    value r;
     Z_ARG(arg);
     r = ml_z_alloc(size_arg + 1);
     Z_REFRESH(arg);
@@ -2163,6 +2205,8 @@ CAMLprim value ml_z_lognot(value arg)
 
 CAMLprim value ml_z_shift_left(value arg, value count)
 {
+  CAMLparam2(arg, count);
+  CAMLlocal2(a, r);
   Z_DECL(arg);
   intnat c = Long_val(count);
   intnat c1, c2;
@@ -2170,15 +2214,15 @@ CAMLprim value ml_z_shift_left(value arg, value count)
   Z_CHECK(arg);
   if (c < 0)
     caml_invalid_argument("Z.shift_left: count argument must be positive");
-  if (!c) return arg;
+  if (!c) CAMLreturn( arg );
   c1 = c / Z_LIMB_BITS;
   c2 = c % Z_LIMB_BITS;
 #if Z_FAST_PATH && !defined(Z_ASM_shift_left)
   if (Is_long(arg) && !c1) {
     /* fast path */
-    value a = arg - 1;
-    value r = arg << c2;
-    if (a == (r >> c2)) return r | 1;
+    a = arg - 1;
+    r = arg << c2;
+    if (a == (r >> c2)) CAMLreturn( r | 1 );
   }
 #endif
   Z_ARG(arg);
@@ -2187,7 +2231,6 @@ CAMLprim value ml_z_shift_left(value arg, value count)
   Z_MARK_SLOW;
   {
     CAMLparam1(arg);
-    value r;
     mp_size_t i;
     r = ml_z_alloc(size_arg + c1 + 1);
     Z_REFRESH(arg);
@@ -2211,36 +2254,36 @@ CAMLprim value ml_z_shift_left(value arg, value count)
 
 CAMLprim value ml_z_shift_right(value arg, value count)
 {
+  CAMLparam2(arg, count);
+  CAMLlocal1(r);
   Z_DECL(arg);
   intnat c = Long_val(count);
   intnat c1, c2;
-  value r;
   Z_MARK_OP;
   Z_CHECK(arg);
   if (c < 0)
     caml_invalid_argument("Z.shift_right: count argument must be positive");
-  if (!c) return arg;
+  if (!c) CAMLreturn( arg );
   c1 = c / Z_LIMB_BITS;
   c2 = c % Z_LIMB_BITS;
 #if Z_FAST_PATH && !defined(Z_ASM_shift_right)
   if (Is_long(arg)) {
     /* fast path */
     if (c1) {
-      if (arg < 0) return Val_long(-1);
-      else return Val_long(0);
+      if (arg < 0) CAMLreturn( Val_long(-1) );
+      else CAMLreturn( Val_long(0) );
     }
-    return (arg >> c2) | 1;
+    CAMLreturn( (arg >> c2) | 1 );
   }
 #endif
   Z_ARG(arg);
   if (c1 >= size_arg) {
-    if (sign_arg) return Val_long(-1);
-    else return Val_long(0);
+    if (sign_arg) CAMLreturn( Val_long(-1) );
+    else CAMLreturn( Val_long(0) );
   }
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
     mp_limb_t cr;
     r = ml_z_alloc(size_arg - c1 + 1);
     Z_REFRESH(arg);
@@ -2259,7 +2302,7 @@ CAMLprim value ml_z_shift_right(value arg, value count)
       for (i = 0; i < c1; i++)
         if (ptr_arg[i]) { cr = 1; break; }
       }
-      if (cr) 
+      if (cr)
         cr = mpn_add_1(Z_LIMB(r), Z_LIMB(r), size_arg - c1, 1);
     }
     else cr = 0;
@@ -2272,27 +2315,28 @@ CAMLprim value ml_z_shift_right(value arg, value count)
 
 CAMLprim value ml_z_shift_right_trunc(value arg, value count)
 {
+  CAMLparam2(arg, count);
+  CAMLlocal1(r);
   Z_DECL(arg);
   intnat c = Long_val(count);
   intnat c1, c2;
-  value r;
   Z_MARK_OP;
   Z_CHECK(arg);
   if (c < 0)
     caml_invalid_argument("Z.shift_right_trunc: count argument must be positive");
-  if (!c) return arg;
+  if (!c) CAMLreturn( arg );
   c1 = c / Z_LIMB_BITS;
   c2 = c % Z_LIMB_BITS;
 #if Z_FAST_PATH
   if (Is_long(arg)) {
     /* fast path */
-    if (c1) return Val_long(0);
-    if (arg >= 1) return (arg >> c2) | 1;
-    else return 2 - (((2 - arg) >> c2) | 1);
+    if (c1) CAMLreturn( Val_long(0) );
+    if (arg >= 1) CAMLreturn( (arg >> c2) | 1 );
+    else CAMLreturn( 2 - (((2 - arg) >> c2) | 1) );
   }
 #endif
   Z_ARG(arg);
-  if (c1 >= size_arg) return Val_long(0);
+  if (c1 >= size_arg) CAMLreturn( Val_long(0) );
   /* mpn_ version */
   Z_MARK_SLOW;
   {
@@ -2345,6 +2389,7 @@ int ml_z_clz(mp_limb_t x)
 
 CAMLprim value ml_z_numbits(value arg)
 {
+  CAMLparam1(arg);
   Z_DECL(arg);
   intnat r;
   int n;
@@ -2355,19 +2400,19 @@ CAMLprim value ml_z_numbits(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r == 0) {
-      return Val_int(0);
+      CAMLreturn( Val_int(0) );
     } else {
       n = ml_z_clz(r > 0 ? r : -r);
-      return Val_long(sizeof(intnat) * 8 - n);
+      CAMLreturn( Val_long(sizeof(intnat) * 8 - n) );
     }
   }
 #endif
-  /* mpn_ version */  
+  /* mpn_ version */
   Z_MARK_SLOW;
   Z_ARG(arg);
-  if (size_arg == 0) return Val_int(0);
+  if (size_arg == 0) CAMLreturn( Val_int(0) );
   n = ml_z_clz(ptr_arg[size_arg - 1]);
-  return Val_long(size_arg * Z_LIMB_BITS - n);
+  CAMLreturn( Val_long(size_arg * Z_LIMB_BITS - n) );
 }
 
 /* Helper function for trailing_zeros: number of trailing 0 bits in x */
@@ -2405,6 +2450,7 @@ int ml_z_ctz(mp_limb_t x)
 
 CAMLprim value ml_z_trailing_zeros(value arg)
 {
+  CAMLparam1(arg);
   Z_DECL(arg);
   intnat r;
   mp_size_t i;
@@ -2415,19 +2461,19 @@ CAMLprim value ml_z_trailing_zeros(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r == 0) {
-      return Val_long (Max_long);
+      CAMLreturn( Val_long (Max_long) );
     } else {
       /* No need to take absolute value of r, as ctz(-x) = ctz(x) */
-      return Val_long (ml_z_ctz(r));
+      CAMLreturn( Val_long (ml_z_ctz(r)) );
     }
   }
 #endif
-  /* mpn_ version */  
+  /* mpn_ version */
   Z_MARK_SLOW;
   Z_ARG(arg);
-  if (size_arg == 0) return Val_long (Max_long);
+  if (size_arg == 0) CAMLreturn( Val_long (Max_long) );
   for (i = 0; ptr_arg[i] == 0; i++) /* skip */;
-  return Val_long(i * Z_LIMB_BITS + ml_z_ctz(ptr_arg[i]));
+  CAMLreturn( Val_long(i * Z_LIMB_BITS + ml_z_ctz(ptr_arg[i])) );
 }
 
 /* helper function for popcount & hamdist: number of bits at 1 in x */
@@ -2455,6 +2501,7 @@ uintnat ml_z_count(uintnat x)
 
 CAMLprim value ml_z_popcount(value arg)
 {
+  CAMLparam1(arg);
   Z_DECL(arg);
   intnat r;
   Z_MARK_OP;
@@ -2464,21 +2511,22 @@ CAMLprim value ml_z_popcount(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r < 0) ml_z_raise_overflow();
-    return Val_long(ml_z_count(r));
+    CAMLreturn( Val_long(ml_z_count(r)) );
   }
 #endif
-  /* mpn_ version */  
+  /* mpn_ version */
   Z_MARK_SLOW;
   Z_ARG(arg);
   if (sign_arg) ml_z_raise_overflow();
-  if (!size_arg) return Val_long(0);
+  if (!size_arg) CAMLreturn( Val_long(0) );
   r =  mpn_popcount(ptr_arg, size_arg);
   if (r < 0 || !Z_FITS_INT(r)) ml_z_raise_overflow();
-  return Val_long(r);
+  CAMLreturn( Val_long(r) );
 }
 
 CAMLprim value ml_z_hamdist(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_DECL(arg1); Z_DECL(arg2);
   intnat r;
   mp_size_t sz;
@@ -2490,7 +2538,7 @@ CAMLprim value ml_z_hamdist(value arg1, value arg2)
     /* fast path */
     r = Long_val(arg1) ^ Long_val(arg2);
     if (r < 0) ml_z_raise_overflow();
-    return Val_long(ml_z_count(r));
+    CAMLreturn( Val_long(ml_z_count(r)) );
   }
 #endif
   /* mpn_ version */
@@ -2499,7 +2547,7 @@ CAMLprim value ml_z_hamdist(value arg1, value arg2)
   Z_ARG(arg2);
   if (sign_arg1 != sign_arg2) ml_z_raise_overflow();
   /* XXX TODO: case where arg1 & arg2 are both negative */
-  if (sign_arg1 || sign_arg2) 
+  if (sign_arg1 || sign_arg2)
     caml_invalid_argument("Z.hamdist: negative arguments");
   /* distance on common size */
   sz = (size_arg1 <= size_arg2) ? size_arg1 : size_arg2;
@@ -2517,11 +2565,12 @@ CAMLprim value ml_z_hamdist(value arg1, value arg2)
     r += mpn_popcount(ptr_arg2 + size_arg1, size_arg2 - size_arg1);
     if (r < 0 || !Z_FITS_INT(r)) ml_z_raise_overflow();
   }
-  return Val_long(r);
+  CAMLreturn( Val_long(r) );
 }
 
 CAMLprim value ml_z_testbit(value arg, value index)
 {
+  CAMLparam2(arg, index);
   Z_DECL(arg);
   uintnat b_idx;
   mp_size_t l_idx, i;
@@ -2532,18 +2581,18 @@ CAMLprim value ml_z_testbit(value arg, value index)
 #if Z_FAST_PATH
   if (Is_long(arg)) {
     if (b_idx >= Z_LIMB_BITS) b_idx = Z_LIMB_BITS - 1;
-    return Val_int((Long_val(arg) >> b_idx) & 1);
+    CAMLreturn( Val_int((Long_val(arg) >> b_idx) & 1) );
   }
 #endif
   Z_MARK_SLOW;
   Z_ARG(arg);
   l_idx = b_idx / Z_LIMB_BITS;
-  if (l_idx >= size_arg) return Val_bool(sign_arg);
+  if (l_idx >= size_arg) CAMLreturn( Val_bool(sign_arg) );
   limb = ptr_arg[l_idx];
   if (sign_arg != 0) {
     /* If arg is negative, its 2-complement representation is
        bitnot(abs(arg) - 1).
-       If any of the limbs of abs(arg) below l_idx is nonzero, 
+       If any of the limbs of abs(arg) below l_idx is nonzero,
        the carry from the decrement dies before reaching l_idx,
        and we just test bitnot(limb).
        If all the limbs below l_idx are zero, the carry from the
@@ -2555,7 +2604,7 @@ CAMLprim value ml_z_testbit(value arg, value index)
     limb = -limb;
   }
  extract:
-  return Val_int((limb >> (b_idx % Z_LIMB_BITS)) & 1);
+  CAMLreturn( Val_int((limb >> (b_idx % Z_LIMB_BITS)) & 1) );
 }
 
 /*---------------------------------------------------
@@ -2565,29 +2614,34 @@ CAMLprim value ml_z_testbit(value arg, value index)
 /* sets rop to the value in op (limbs are copied) */
 void ml_z_mpz_set_z(mpz_t rop, value op)
 {
+  CAMLparam1(op);
   Z_DECL(op);
   Z_CHECK(op);
   Z_ARG(op);
   mpz_realloc2(rop, size_op * Z_LIMB_BITS);
   rop->_mp_size = (sign_op >= 0) ? size_op : -size_op;
   ml_z_cpy_limb(rop->_mp_d, ptr_op, size_op);
+  CAMLreturn0;
 }
 
 /* inits and sets rop to the value in op (limbs are copied) */
 void ml_z_mpz_init_set_z(mpz_t rop, value op)
 {
+  CAMLparam1(op);
   mpz_init(rop);
   ml_z_mpz_set_z(rop,op);
+  CAMLreturn0;
 }
 
 /* returns a new z objects equal to op (limbs are copied) */
 value ml_z_from_mpz(mpz_t op)
 {
-  value r;
+  CAMLparam0();
+  CAMLlocal1(r);
   size_t sz = mpz_size(op);
   r = ml_z_alloc(sz);
   ml_z_cpy_limb(Z_LIMB(r), op->_mp_d, sz);
-  return ml_z_reduce(r, sz, (mpz_sgn(op) >= 0) ? 0 : Z_SIGN_MASK);
+  CAMLreturn( ml_z_reduce(r, sz, (mpz_sgn(op) >= 0) ? 0 : Z_SIGN_MASK) );
 }
 
 #if __GNU_MP_VERSION >= 5
@@ -2597,6 +2651,8 @@ extern void __gmpn_divexact (mp_ptr, mp_srcptr, mp_size_t, mp_srcptr, mp_size_t)
 
 CAMLprim value ml_z_divexact(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
+  CAMLlocal2(r, q);
   Z_DECL(arg1); Z_DECL(arg2);
   Z_MARK_OP;
   Z_CHECK(arg1); Z_CHECK(arg2);
@@ -2608,7 +2664,7 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
     intnat q;
     if (!a2) ml_z_raise_divide_by_zero();
     q = a1 / a2;
-    if (Z_FITS_INT(q)) return Val_long(q);
+    if (Z_FITS_INT(q)) CAMLreturn( Val_long(q) );
   }
 #endif
   Z_MARK_SLOW;
@@ -2620,10 +2676,8 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
     if (!size_arg2)
       ml_z_raise_divide_by_zero();
     if (size_arg1 < size_arg2)
-      return Val_long(0);
+      CAMLreturn( Val_long(0) );
     {
-      CAMLparam2(arg1,arg2);
-      CAMLlocal1(q);
       q = ml_z_alloc(size_arg1 - size_arg2 + 1);
       Z_REFRESH(arg1); Z_REFRESH(arg2);
       __gmpn_divexact(Z_LIMB(q),
@@ -2636,8 +2690,6 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
 #else
   {
     /* mpz_ version */
-    CAMLparam2(arg1,arg2);
-    CAMLlocal1(r);
     mpz_t a,b;
     if (!ml_z_sgn(arg2))
       ml_z_raise_divide_by_zero();
@@ -2651,7 +2703,7 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
   }
 #endif
 }
- 
+
 CAMLprim value ml_z_powm(value base, value exp, value mod)
 {
   CAMLparam3(base,exp,mod);
@@ -2716,7 +2768,7 @@ CAMLprim value ml_z_pow(value base, value exp)
   CAMLlocal1(r);
   mpz_t mbase;
   intnat e = Long_val(exp);
-  if (e < 0) 
+  if (e < 0)
     caml_invalid_argument("Z.pow: exponent must be non-negative");
   ml_z_mpz_init_set_z(mbase, base);
   mpz_pow_ui(mbase, mbase, e);
@@ -2731,7 +2783,7 @@ CAMLprim value ml_z_root(value a, value b)
   CAMLlocal1(r);
   mpz_t ma;
   intnat mb = Long_val(b);
-  if (mb < 0) 
+  if (mb < 0)
     caml_invalid_argument("Z.root: exponent must be non-negative");
   ml_z_mpz_init_set_z(ma, a);
   mpz_root(ma, ma, mb);
@@ -2831,15 +2883,16 @@ CAMLprim value ml_z_invert(value base, value mod)
 */
 int ml_z_custom_compare(value arg1, value arg2)
 {
+  CAMLparam2(arg1, arg2);
   Z_DECL(arg1);  Z_DECL(arg2);
   int r;
   Z_CHECK(arg1); Z_CHECK(arg2);
 #if Z_FAST_PATH
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    if (arg1 > arg2) return 1;
-    else if (arg1 < arg2) return -1;
-    else return 0;
+    if (arg1 > arg2) CAMLreturn( 1 );
+    else if (arg1 < arg2) CAMLreturn( -1 );
+    else CAMLreturn( 0 );
   }
 #endif
   r = 0;
@@ -2856,7 +2909,7 @@ int ml_z_custom_compare(value arg1, value arg2)
     }
   }
   if (sign_arg1) r = -r;
-  return r;
+  CAMLreturn( r );
 }
 
 #ifndef Z_OCAML_HASH
@@ -2865,6 +2918,7 @@ int ml_z_custom_compare(value arg1, value arg2)
 
 static intnat ml_z_custom_hash(value v)
 {
+  CAMLparam1(v);
   Z_DECL(v);
   mp_size_t i;
   uint32_t acc = 0;
@@ -2882,12 +2936,13 @@ static intnat ml_z_custom_hash(value v)
     acc = caml_hash_mix_uint32(acc, 0);
 #endif
   if (sign_v) acc++;
-  return acc;
+  CAMLreturn( acc );
 }
 
 CAMLprim value ml_z_hash(value v)
 {
-  return Val_long(ml_z_custom_hash(v));
+  CAMLparam1(v);
+  CAMLreturn( Val_long(ml_z_custom_hash(v)) );
 }
 
 /* serialized format:
@@ -2895,15 +2950,16 @@ CAMLprim value ml_z_hash(value v)
    - 4-byte size in bytes
    - size-byte unsigned integer, in little endian order
  */
-static void ml_z_custom_serialize(value v, 
+static void ml_z_custom_serialize(value v,
                                   uintnat * wsize_32,
                                   uintnat * wsize_64)
 {
+  CAMLparam1(v);
   mp_size_t i,nb;
   Z_DECL(v);
   Z_CHECK(v);
   Z_ARG(v);
-  if ((mp_size_t)(uint32_t) size_v != size_v) 
+  if ((mp_size_t)(uint32_t) size_v != size_v)
     caml_failwith("Z.serialize: number is too large");
   nb = size_v * sizeof(mp_limb_t);
   caml_serialize_int_1(sign_v ? 1 : 0);
@@ -2922,12 +2978,13 @@ static void ml_z_custom_serialize(value v,
 #endif
   }
   *wsize_32 = 4 * (1 + (nb + 3) / 4);
-  *wsize_64 = 8 * (1 + (nb + 7) / 8);  
+  *wsize_64 = 8 * (1 + (nb + 7) / 8);
 #if Z_PERFORM_CHECK
   /* Add space for canary */
   *wsize_32 += 4;
   *wsize_64 += 8;
 #endif
+  CAMLreturn0;
 }
 
 /* XXX: serializing a large (i.e., > 2^31) int on a 64-bit machine and
@@ -2941,7 +2998,7 @@ static uintnat ml_z_custom_deserialize(void * dst)
   uint32_t sz = caml_deserialize_uint_4();
   uint32_t szw = (sz + sizeof(mp_limb_t) - 1) / sizeof(mp_limb_t);
   uint32_t i = 0;
-  mp_limb_t x; 
+  mp_limb_t x;
   /* all limbs but last */
   if (szw > 1) {
     for (; i < szw - 1; i++) {
@@ -3016,7 +3073,7 @@ CAMLprim value ml_z_mlgmpidl_of_mpz(value a)
 }
 
 /* stores the Z.t object into an existing Mpz.t one;
-   as we never allocate Mpz.t objects, we don't need any pointer to 
+   as we never allocate Mpz.t objects, we don't need any pointer to
    mlgmpidl's custom block ops, and so, can link the function even if
    mlgmpidl is not installed
  */
@@ -3039,19 +3096,21 @@ CAMLprim value ml_z_mlgmpidl_set_mpz(value r, value a)
 static void ml_z_dump_count()
 {
   printf("Z: %lu asm operations, %lu C operations, %lu slow (%lu%%)\n",
-         ml_z_ops_as, ml_z_ops, ml_z_slow, 
+         ml_z_ops_as, ml_z_ops, ml_z_slow,
          ml_z_ops ? (ml_z_slow*100/(ml_z_ops+ml_z_ops_as)) : 0);
 }
 #endif
 
 CAMLprim value ml_z_install_frametable()
 {
+  CAMLparam0();
   /* nothing to do for bytecode version */
-  return Val_unit;
+  CAMLreturn( Val_unit );
 }
 
 CAMLprim value ml_z_init()
 {
+  CAMLparam0();
   ml_z_2p32 = ldexp(1., 32);
   /* run-time checks */
 #ifdef ARCH_SIXTYFOUR
@@ -3068,7 +3127,7 @@ CAMLprim value ml_z_init()
 #if Z_CUSTOM_BLOCK
   caml_register_custom_operations(&ml_z_custom_ops);
 #endif
-  return Val_unit;
+  CAMLreturn( Val_unit );
 }
 
 #ifdef __cplusplus
