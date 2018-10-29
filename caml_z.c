@@ -321,14 +321,15 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
 /* out-of-line allocation, inserting a canary after the last limb */
 static value ml_z_alloc(mp_size_t sz)
 {
-  value v;
+  CAMLparam0();
+  CAMLlocal1(v);
 #if Z_CUSTOM_BLOCK
   v = caml_alloc_custom(&ml_z_custom_ops, (1 + sz + 1) * sizeof(value), 0, 1);
 #else
   v = caml_alloc(1 + sz + 1, Abstract_tag);
 #endif
   Z_LIMB(v)[sz] = 0xDEADBEEF ^ sz;
-  return v;
+  CAMLreturn( v );
 }
 #endif
 
@@ -394,18 +395,19 @@ static inline mp_limb_t* ml_z_dup_limb(mp_limb_t* src, mp_size_t sz)
  */
 static value ml_z_reduce(value r, mp_size_t sz, intnat sign)
 {
+  CAMLparam1(r);
   while (sz > 0 && !Z_LIMB(r)[sz-1]) sz--;
 #if Z_USE_NATINT
-  if (!sz) return Val_long(0);
+  if (!sz) CAMLreturn( Val_long(0) );
   if (sz <= 1 && Z_LIMB(r)[0] <= Z_MAX_INT) {
-    if (sign) return Val_long(-Z_LIMB(r)[0]);
-    else return Val_long(Z_LIMB(r)[0]);
+    if (sign) CAMLreturn( Val_long(-Z_LIMB(r)[0]) );
+    else CAMLreturn( Val_long(Z_LIMB(r)[0]) );
   }
 #else
   if (!sz) sign = 0;
 #endif
   Z_HEAD(r) = sz | sign;
-  return r;
+  CAMLreturn( r );
 }
 
 static caml_root caml_ml_z_overflow = NULL;
@@ -435,12 +437,13 @@ static void ml_z_raise_overflow()
 
 CAMLprim value ml_z_of_int(value v)
 {
+  CAMLparam1(v);
 #if Z_USE_NATINT
   Z_MARK_OP;
-  return v;
+  CAMLreturn(v);
 #else
+  CAMLlocal1(r);
   intnat x;
-  value r;
   Z_MARK_OP;
   Z_MARK_SLOW;
   x = Long_val(v);
@@ -449,18 +452,19 @@ CAMLprim value ml_z_of_int(value v)
   else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -x; }
   else Z_HEAD(r) = 0;
   Z_CHECK(r);
-  return r;
+  CAMLreturn( r );
 #endif
 }
 
 CAMLprim value ml_z_of_nativeint(value v)
 {
+  CAMLparam1(v);
+  CAMLlocal1(r);
   intnat x;
-  value r;
   Z_MARK_OP;
   x = Nativeint_val(v);
 #if Z_USE_NATINT
-  if (Z_FITS_INT(x)) return Val_long(x);
+  if (Z_FITS_INT(x)) CAMLreturn( Val_long(x) );
 #endif
   Z_MARK_SLOW;
   r = ml_z_alloc(1);
@@ -468,37 +472,39 @@ CAMLprim value ml_z_of_nativeint(value v)
   else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -x; }
   else Z_HEAD(r) = 0;
   Z_CHECK(r);
-  return r;
+  CAMLreturn( r );
 }
 
 CAMLprim value ml_z_of_int32(value v)
 {
+  CAMLparam1(v);
+  CAMLlocal1(r);
   int32_t x;
   Z_MARK_OP;
   x = Int32_val(v);
 #if Z_USE_NATINT && defined(ARCH_SIXTYFOUR)
-  return Val_long(x);
+  CAMLreturn( Val_long(x) );
 #else
 #if Z_USE_NATINT
-  if (Z_FITS_INT(x)) return Val_long(x);
+  if (Z_FITS_INT(x)) CAMLreturn( Val_long(x) );
 #endif
   {
-    value r;
     Z_MARK_SLOW;
     r = ml_z_alloc(1);
     if (x > 0) { Z_HEAD(r) = 1; Z_LIMB(r)[0] = x; }
     else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -(mp_limb_t)x; }
     else Z_HEAD(r) = 0;
     Z_CHECK(r);
-    return r;
+    CAMLreturn( r );
   }
 #endif
 }
 
 CAMLprim value ml_z_of_int64(value v)
 {
+  CAMLparam1(v);
+  CAMLlocal1(r);
   int64_t x;
-  value r;
   Z_MARK_OP;
   x = Int64_val(v);
 #if Z_USE_NATINT
@@ -522,15 +528,16 @@ CAMLprim value ml_z_of_int64(value v)
   }
 #endif
   Z_CHECK(r);
-  return r;
+  CAMLreturn( r );
 }
 
 CAMLprim value ml_z_of_float(value v)
 {
+  CAMLparam1(v);
+  CAMLlocal1(r);
   double x;
   int exp;
   int64_t y, m;
-  value r;
   Z_MARK_OP;
   x = Double_val(v);
 #if Z_USE_NATINT
@@ -577,7 +584,7 @@ CAMLprim value ml_z_of_float(value v)
 #endif
   }
   Z_CHECK(r);
-  return r;
+  CAMLreturn( r );
 }
 
 CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value length)
@@ -671,15 +678,16 @@ CAMLprim value ml_z_of_substring_base(value b, value v, value offset, value leng
 
 CAMLprim value ml_z_to_int(value v)
 {
+  CAMLparam1(v);
   intnat x;
   Z_DECL(v);
   Z_MARK_OP;
   Z_CHECK(v);
-  if (Is_long(v)) return v;
+  if (Is_long(v)) CAMLreturn( v );
   Z_MARK_SLOW;
   Z_ARG(v);
   if (size_v > 1) ml_z_raise_overflow();
-  if (!size_v) return Val_long(0);
+  if (!size_v) CAMLreturn( Val_long(0) );
   x = *ptr_v;
   if (sign_v) {
     if ((uintnat)x > Z_HI_INT) ml_z_raise_overflow();
@@ -688,7 +696,7 @@ CAMLprim value ml_z_to_int(value v)
   else {
     if ((uintnat)x >= Z_HI_INT) ml_z_raise_overflow();
   }
-  return Val_long(x);
+  CAMLreturn( Val_long(x) );
 }
 
 CAMLprim value ml_z_to_nativeint(value v)
