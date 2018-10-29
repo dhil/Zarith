@@ -138,9 +138,11 @@ extern "C" {
 
 #if Z_CUSTOM_BLOCK
 #define Z_HEAD(x)   (*((value*)Data_custom_val((x))))
+#define Z_SET_HEAD(l, r) (*((value*)Data_custom_val((l))) = (r))
 #define Z_LIMB(x)   ((mp_limb_t*)Data_custom_val((x)) + 1)
 #else
 #define Z_HEAD(x)   (Field((x),0))
+#define Z_SET_HEAD(l, r) (caml_initialize_field(*((value*)Data_custom_val((l))), 0, (r)))
 #define Z_LIMB(x)   ((mp_limb_t*)&(Field((x),1)))
 #endif
 #define Z_SIGN(x)   (Z_HEAD((x)) & Z_SIGN_MASK)
@@ -249,6 +251,7 @@ static void ml_z_dump(const char* msg, mp_limb_t* p, mp_size_t sz)
 /* for debugging: check invariant */
 void ml_z_check(const char* fn, int line, const char* arg, value v)
 {
+  CAMLparam1(v);
   mp_size_t sz;
 
   if (Is_block(v)) {
@@ -281,7 +284,7 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
                arg, fn, line);
         exit(1);
       }
-      return;
+      CAMLreturn0;
     }
     if (Z_SIZE(v) <= 1 && Z_LIMB(v)[0] <= Z_MAX_INT) {
       printf("ml_z_check: unreduced argument for %s at %s:%i.\n", arg, fn, line);
@@ -293,6 +296,7 @@ void ml_z_check(const char* fn, int line, const char* arg, value v)
     ml_z_dump("offending argument: ", Z_LIMB(v), Z_SIZE(v));
     exit(1);
   }
+  CAMLreturn0;
 }
 #endif
 
@@ -406,7 +410,7 @@ static value ml_z_reduce(value r, mp_size_t sz, intnat sign)
 #else
   if (!sz) sign = 0;
 #endif
-  Z_HEAD(r) = sz | sign;
+  Z_SET_HEAD(r, sz | sign);
   CAMLreturn( r );
 }
 
@@ -448,9 +452,9 @@ CAMLprim value ml_z_of_int(value v)
   Z_MARK_SLOW;
   x = Long_val(v);
   r =  ml_z_alloc(1);
-  if (x > 0) { Z_HEAD(r) = 1; Z_LIMB(r)[0] = x; }
-  else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -x; }
-  else Z_HEAD(r) = 0;
+  if (x > 0) { Z_SET_HEAD(r, 1); Z_LIMB(r)[0] = x; }
+  else if (x < 0) { Z_SET_HEAD(r, 1 | Z_SIGN_MASK); Z_LIMB(r)[0] = -x; }
+  else Z_SET_HEAD(r, 0);
   Z_CHECK(r);
   CAMLreturn( r );
 #endif
@@ -468,9 +472,9 @@ CAMLprim value ml_z_of_nativeint(value v)
 #endif
   Z_MARK_SLOW;
   r = ml_z_alloc(1);
-  if (x > 0) { Z_HEAD(r) = 1; Z_LIMB(r)[0] = x; }
-  else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -x; }
-  else Z_HEAD(r) = 0;
+  if (x > 0) { Z_SET_HEAD(r, 1); Z_LIMB(r)[0] = x; }
+  else if (x < 0) { Z_SET_HEAD(r, 1 | Z_SIGN_MASK); Z_LIMB(r)[0] = -x; }
+  else Z_SET_HEAD(r, 0);
   Z_CHECK(r);
   CAMLreturn( r );
 }
@@ -491,9 +495,9 @@ CAMLprim value ml_z_of_int32(value v)
   {
     Z_MARK_SLOW;
     r = ml_z_alloc(1);
-    if (x > 0) { Z_HEAD(r) = 1; Z_LIMB(r)[0] = x; }
-    else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -(mp_limb_t)x; }
-    else Z_HEAD(r) = 0;
+    if (x > 0) { Z_SET_HEAD(r, 1); Z_LIMB(r)[0] = x; }
+    else if (x < 0) { Z_SET_HEAD(r, 1 | Z_SIGN_MASK); Z_LIMB(r)[0] = -(mp_limb_t)x; }
+    else Z_SET_HEAD(r, 0);
     Z_CHECK(r);
     CAMLreturn( r );
   }
@@ -513,9 +517,9 @@ CAMLprim value ml_z_of_int64(value v)
   Z_MARK_SLOW;
 #ifdef ARCH_SIXTYFOUR
   r = ml_z_alloc(1);
-  if (x > 0) { Z_HEAD(r) = 1; Z_LIMB(r)[0] = x; }
-  else if (x < 0) { Z_HEAD(r) = 1 | Z_SIGN_MASK; Z_LIMB(r)[0] = -x; }
-  else Z_HEAD(r) = 0;
+  if (x > 0) { Z_SET_HEAD(r, 1); Z_LIMB(r)[0] = x; }
+  else if (x < 0) { Z_SET_HEAD(r,  1 | Z_SIGN_MASK); Z_LIMB(r)[0] = -x; }
+  else Z_SET_HEAD(r, 0);
 #else
   {
   mp_limb_t sign;
