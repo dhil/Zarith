@@ -1066,9 +1066,9 @@ CAMLprim value ml_z_compare(value arg1, value arg2)
 #if Z_FAST_PATH
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    if (arg1 > arg2) CAMLreturn(Val_long(1));
-    else if (arg1 < arg2) CAMLreturn(Val_long(-1));
-    else CAMLreturn(Val_long(0));
+    if (arg1 > arg2) return Val_long(1);
+    else if (arg1 < arg2) return Val_long(-1);
+    else return Val_long(0);
   }
 #endif
   /* mpn_ version */
@@ -1100,7 +1100,7 @@ CAMLprim value ml_z_equal(value arg1, value arg2)
 #if Z_FAST_PATH
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    CAMLreturn((arg1 == arg2) ? Val_true : Val_false);
+     return (arg1 == arg2) ? Val_true : Val_false;
   }
 #endif
   /* mpn_ version */
@@ -1115,17 +1115,16 @@ CAMLprim value ml_z_equal(value arg1, value arg2)
 
 int ml_z_sgn(value arg)
 {
-  CAMLparam1(arg);
   if (Is_long(arg)) {
-    if (arg > Val_long(0)) CAMLreturn(1);
-    else if (arg < Val_long(0)) CAMLreturn(-1);
-    else CAMLreturn(0);
+    if (arg > Val_long(0)) return 1;
+    else if (arg < Val_long(0)) return -1;
+    else return 0;
   }
   else {
     Z_MARK_SLOW;
-    if (!Z_SIZE(arg)) CAMLreturn(0);
-    else if (Z_SIGN(arg)) CAMLreturn(-1);
-    else CAMLreturn(1);
+    if (!Z_SIZE(arg)) return 0;
+    else if (Z_SIGN(arg)) return -1;
+    else return 1;
   }
 }
 CAMLprim value ml_z_sign(value arg)
@@ -1260,7 +1259,7 @@ CAMLprim value ml_z_neg(value arg)
 #if Z_FAST_PATH && !defined(Z_ASM_neg)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(2 - arg);
+    if (arg > Val_long(Z_MIN_INT)) return 2 - arg;
   }
 #endif
   /* mpn_ version */
@@ -1286,8 +1285,8 @@ CAMLprim value ml_z_abs(value arg)
 #if Z_FAST_PATH && !defined(Z_ASM_abs)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg >= Val_long(0)) CAMLreturn(arg);
-    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(2 - arg);
+    if (arg >= Val_long(0)) return arg;
+    if (arg > Val_long(Z_MIN_INT)) return 2 - arg;
   }
 #endif
   /* mpn_ version */
@@ -1394,7 +1393,7 @@ CAMLprim value ml_z_add(value arg1, value arg2)
     intnat a1 = Long_val(arg1);
     intnat a2 = Long_val(arg2);
     intnat v = a1 + a2;
-    if (Z_FITS_INT(v)) CAMLreturn(Val_long(v));
+    if (Z_FITS_INT(v)) return Val_long(v);
   }
 #endif
   /* mpn_ version */
@@ -1413,7 +1412,7 @@ CAMLprim value ml_z_sub(value arg1, value arg2)
     intnat a1 = Long_val(arg1);
     intnat a2 = Long_val(arg2);
     intnat v = a1 - a2;
-    if (Z_FITS_INT(v)) return Val_long(v);
+    if (Z_FITS_INT(v)) CAMLreturn(Val_long(v));
   }
 #endif
   /* mpn_ version */
@@ -1507,9 +1506,7 @@ static value ml_z_tdiv_qr(value arg1, value arg2)
   }
   Z_CHECK(q);
   Z_CHECK(r);
-  p = caml_alloc_small(2, 0);
-  caml_initialize_field(p, 0, q);
-  caml_initialize_field(p, 1, r);
+  p = caml_alloc_2(0, q, r);
   CAMLreturn(p);
 }
 
@@ -1529,9 +1526,7 @@ CAMLprim value ml_z_div_rem(value arg1, value arg2)
     q = a1 / a2;
     r = a1 % a2;
     if (Z_FITS_INT(q) && Z_FITS_INT(r)) {
-      p = caml_alloc_small(2, 0);
-      caml_initialize_field(p, 0, Val_long(q));
-      caml_initialize_field(p, 1, Val_long(r));
+      p = caml_alloc_2(0, Val_long(q), Val_long(r));
       CAMLreturn(p);
     }
   }
@@ -1555,7 +1550,7 @@ CAMLprim value ml_z_div(value arg1, value arg2)
     intnat q;
     if (!a2) ml_z_raise_divide_by_zero();
     q = a1 / a2;
-    if (Z_FITS_INT(q)) return Val_long(q);
+    if (Z_FITS_INT(q)) CAMLreturn(Val_long(q));
   }
 #endif
   /* mpn_ version */
@@ -1578,7 +1573,7 @@ CAMLprim value ml_z_rem(value arg1, value arg2)
     intnat r;
     if (!a2) ml_z_raise_divide_by_zero();
     r = a1 % a2;
-    if (Z_FITS_INT(r)) return Val_long(r);
+    if (Z_FITS_INT(r)) CAMLreturn(Val_long(r));
   }
 #endif
   /* mpn_ version */
@@ -1709,7 +1704,7 @@ CAMLprim value ml_z_succ(value arg)
 #if Z_FAST_PATH && !defined(Z_ASM_succ)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg < Val_long(Z_MAX_INT)) CAMLreturn(arg + 2);
+    if (arg < Val_long(Z_MAX_INT)) return arg + 2;
   }
 #endif
   /* mpn_ version */
@@ -1725,7 +1720,7 @@ CAMLprim value ml_z_pred(value arg)
 #if Z_FAST_PATH && !defined(Z_ASM_pred)
   if (Is_long(arg)) {
     /* fast path */
-    if (arg > Val_long(Z_MIN_INT)) CAMLreturn(arg - 2);
+    if (arg > Val_long(Z_MIN_INT)) return arg - 2;
   }
 #endif
   /* mpn_ version */
@@ -1781,9 +1776,7 @@ CAMLprim value ml_z_sqrt_rem(value arg)
   else r = s = Val_long(0);
   Z_CHECK(r);
   Z_CHECK(s);
-  p = caml_alloc_small(2, 0);
-  caml_initialize_field(p, 0, r);
-  caml_initialize_field(p, 1, s);
+  p = caml_alloc_2(0, r, s);
   CAMLreturn(p);
 }
 
@@ -2013,7 +2006,7 @@ CAMLprim value ml_z_logor(value arg1, value arg2)
 #if Z_FAST_PATH && !defined(Z_ASM_logor)
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    CAMLreturn(arg1 | arg2);
+    return arg1 | arg2;
   }
 #endif
   /* mpn_ version */
@@ -2098,7 +2091,7 @@ CAMLprim value ml_z_logxor(value arg1, value arg2)
 #if Z_FAST_PATH && !defined(Z_ASM_logxor)
   if (Is_long(arg1) && Is_long(arg2)) {
     /* fast path */
-    CAMLreturn((arg1 ^ arg2) | 1);
+    return (arg1 ^ arg2) | 1;
   }
 #endif
   /* mpn_ version */
@@ -2183,7 +2176,7 @@ CAMLprim value ml_z_lognot(value arg)
 #if Z_FAST_PATH && !defined(Z_ASM_lognot)
   if (Is_long(arg)) {
     /* fast path */
-    CAMLreturn( (~arg) | 1 );
+    return (~arg) | 1;
   }
 #endif
   /* mpn_ version */
@@ -2234,11 +2227,11 @@ CAMLprim value ml_z_shift_left(value arg, value count)
     /* fast path */
     a = arg - 1;
     r = arg << c2;
-    if (a == (r >> c2)) CAMLreturn( r | 1 );
+    if (a == (r >> c2)) return r | 1 ;
   }
 #endif
   Z_ARG(arg);
-  if (!size_arg) return Val_long(0);
+  if (!size_arg) CAMLreturn( Val_long(0) );
   /* mpn_ version */
   Z_MARK_SLOW;
   {
@@ -2282,10 +2275,10 @@ CAMLprim value ml_z_shift_right(value arg, value count)
   if (Is_long(arg)) {
     /* fast path */
     if (c1) {
-      if (arg < 0) CAMLreturn( Val_long(-1) );
-      else CAMLreturn( Val_long(0) );
+      if (arg < 0) return Val_long(-1);
+      else return Val_long(0);
     }
-    CAMLreturn( (arg >> c2) | 1 );
+    return (arg >> c2) | 1;
   }
 #endif
   Z_ARG(arg);
@@ -2342,9 +2335,9 @@ CAMLprim value ml_z_shift_right_trunc(value arg, value count)
 #if Z_FAST_PATH
   if (Is_long(arg)) {
     /* fast path */
-    if (c1) CAMLreturn( Val_long(0) );
-    if (arg >= 1) CAMLreturn( (arg >> c2) | 1 );
-    else CAMLreturn( 2 - (((2 - arg) >> c2) | 1) );
+    if (c1) return Val_long(0);
+    if (arg >= 1) return (arg >> c2) | 1;
+    else return 2 - (((2 - arg) >> c2) | 1);
   }
 #endif
   Z_ARG(arg);
@@ -2412,10 +2405,10 @@ CAMLprim value ml_z_numbits(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r == 0) {
-      CAMLreturn( Val_int(0) );
+      return Val_int(0);
     } else {
       n = ml_z_clz(r > 0 ? r : -r);
-      CAMLreturn( Val_long(sizeof(intnat) * 8 - n) );
+      return Val_long(sizeof(intnat) * 8 - n);
     }
   }
 #endif
@@ -2473,10 +2466,10 @@ CAMLprim value ml_z_trailing_zeros(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r == 0) {
-      CAMLreturn( Val_long (Max_long) );
+      return Val_long (Max_long);
     } else {
       /* No need to take absolute value of r, as ctz(-x) = ctz(x) */
-      CAMLreturn( Val_long (ml_z_ctz(r)) );
+      return Val_long (ml_z_ctz(r));
     }
   }
 #endif
@@ -2523,7 +2516,7 @@ CAMLprim value ml_z_popcount(value arg)
     /* fast path */
     r = Long_val(arg);
     if (r < 0) ml_z_raise_overflow();
-    CAMLreturn( Val_long(ml_z_count(r)) );
+    return Val_long(ml_z_count(r));
   }
 #endif
   /* mpn_ version */
@@ -2533,7 +2526,7 @@ CAMLprim value ml_z_popcount(value arg)
   if (!size_arg) CAMLreturn( Val_long(0) );
   r =  mpn_popcount(ptr_arg, size_arg);
   if (r < 0 || !Z_FITS_INT(r)) ml_z_raise_overflow();
-  CAMLreturn( Val_long(r) );
+  return Val_long(r);
 }
 
 CAMLprim value ml_z_hamdist(value arg1, value arg2)
@@ -2550,7 +2543,7 @@ CAMLprim value ml_z_hamdist(value arg1, value arg2)
     /* fast path */
     r = Long_val(arg1) ^ Long_val(arg2);
     if (r < 0) ml_z_raise_overflow();
-    CAMLreturn( Val_long(ml_z_count(r)) );
+    return Val_long(ml_z_count(r));
   }
 #endif
   /* mpn_ version */
@@ -2593,7 +2586,7 @@ CAMLprim value ml_z_testbit(value arg, value index)
 #if Z_FAST_PATH
   if (Is_long(arg)) {
     if (b_idx >= Z_LIMB_BITS) b_idx = Z_LIMB_BITS - 1;
-    CAMLreturn( Val_int((Long_val(arg) >> b_idx) & 1) );
+    return Val_int((Long_val(arg) >> b_idx) & 1);
   }
 #endif
   Z_MARK_SLOW;
@@ -2676,7 +2669,7 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
     intnat q;
     if (!a2) ml_z_raise_divide_by_zero();
     q = a1 / a2;
-    if (Z_FITS_INT(q)) CAMLreturn( Val_long(q) );
+    if (Z_FITS_INT(q)) return Val_long(q);
   }
 #endif
   Z_MARK_SLOW;
@@ -2930,7 +2923,7 @@ int ml_z_custom_compare(value arg1, value arg2)
 
 static intnat ml_z_custom_hash(value v)
 {
-  CAMLparam1(v);
+  /* CAMLparam1(v); */
   Z_DECL(v);
   mp_size_t i;
   uint32_t acc = 0;
@@ -2948,7 +2941,7 @@ static intnat ml_z_custom_hash(value v)
     acc = caml_hash_mix_uint32(acc, 0);
 #endif
   if (sign_v) acc++;
-  CAMLreturn( acc );
+  return acc;
 }
 
 CAMLprim value ml_z_hash(value v)
