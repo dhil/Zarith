@@ -375,10 +375,10 @@ static inline mp_limb_t* ml_z_dup_limb(mp_limb_t* src, mp_size_t sz)
 
 #define Z_ARG(arg)                                                      \
   if (Is_long(arg)) {                                                   \
-    intnat n = Long_val(arg);                                           \
-    loc_##arg = n < 0 ? -n : n;                                         \
-    sign_##arg = n & Z_SIGN_MASK;                                       \
-    size_##arg = n != 0;                                                \
+    intnat n0 = Long_val(arg);                                           \
+    loc_##arg = n0 < 0 ? -n0 : n0;                                         \
+    sign_##arg = n0 & Z_SIGN_MASK;                                       \
+    size_##arg = n0 != 0;                                                \
     ptr_##arg = &loc_##arg;                                             \
   }                                                                     \
   else {                                                                \
@@ -1443,7 +1443,6 @@ CAMLprim value ml_z_mul(value arg1, value arg2)
   Z_ARG(arg2);
   if (!size_arg1 || !size_arg2) CAMLreturn(Val_long(0));
   {
-    CAMLparam2(arg1,arg2);
     r = ml_z_alloc(size_arg1 + size_arg2);
     mp_limb_t c;
     Z_REFRESH(arg1);
@@ -2235,7 +2234,7 @@ CAMLprim value ml_z_shift_left(value arg, value count)
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
+    // CAMLparam1(arg);
     mp_size_t i;
     r = ml_z_alloc(size_arg + c1 + 1);
     Z_REFRESH(arg);
@@ -2345,7 +2344,7 @@ CAMLprim value ml_z_shift_right_trunc(value arg, value count)
   /* mpn_ version */
   Z_MARK_SLOW;
   {
-    CAMLparam1(arg);
+    // CAMLparam1(arg);
     r = ml_z_alloc(size_arg - c1);
     Z_REFRESH(arg);
     if (c2)
@@ -2396,11 +2395,11 @@ CAMLprim value ml_z_numbits(value arg)
 {
   CAMLparam1(arg);
   Z_DECL(arg);
-  intnat r;
   int n;
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH
+  intnat r;
   if (Is_long(arg)) {
     /* fast path */
     r = Long_val(arg);
@@ -2457,11 +2456,11 @@ CAMLprim value ml_z_trailing_zeros(value arg)
 {
   CAMLparam1(arg);
   Z_DECL(arg);
-  intnat r;
   mp_size_t i;
   Z_MARK_OP;
   Z_CHECK(arg);
 #if Z_FAST_PATH
+  intnat r;
   if (Is_long(arg)) {
     /* fast path */
     r = Long_val(arg);
@@ -2666,10 +2665,10 @@ CAMLprim value ml_z_divexact(value arg1, value arg2)
     /* fast path */
     intnat a1 = Long_val(arg1);
     intnat a2 = Long_val(arg2);
-    intnat q;
+    intnat q0;
     if (!a2) ml_z_raise_divide_by_zero();
-    q = a1 / a2;
-    if (Z_FITS_INT(q)) return Val_long(q);
+    q0 = a1 / a2;
+    if (Z_FITS_INT(q0)) return Val_long(q0);
   }
 #endif
   Z_MARK_SLOW;
@@ -2735,9 +2734,9 @@ CAMLprim value ml_z_powm(value base, value exp, value mod)
 
 CAMLprim value ml_z_powm_sec(value base, value exp, value mod)
 {
+  CAMLparam3(base,exp,mod);
 #ifndef HAS_MPIR
 #if __GNU_MP_VERSION >= 5
-  CAMLparam3(base,exp,mod);
   CAMLlocal1(r);
   mpz_t mbase, mexp, mmod;
   ml_z_mpz_init_set_z(mbase, base);
